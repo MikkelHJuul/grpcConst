@@ -15,6 +15,9 @@ Any `message` sent with a value in the same place as the default constant `messa
 ## Implementation
 This is a golang implementation. The client side is made as an interceptor that decorates the streams' `grpc.ClientStream`, overriding the method `RecvMsg`. 
 
+A client simply initiate it's client connection with an interceptor `grpcConst.StreamClientInterceptor`.
+
+A convenience method `grpcConst.HeaderSetConstant` can be used to construct the header that can be sent using your server-side `stream.SendHeader` before sending messages. 
 ## TODO
 - arrays?
 - test
