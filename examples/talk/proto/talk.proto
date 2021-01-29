@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service TalkService {
+  rpc GetMany (EmptyRequest) returns (stream SingleReply) {}
+}
+
+message EmptyRequest {
+}
+
+message SingleReply {
+  uint64 variable = 1;
+  string constant = 2;
+}
