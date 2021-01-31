@@ -31,7 +31,12 @@ func StreamClientInterceptor() grpc.StreamClientInterceptor {
 type dataAddingClientStream struct {
 	grpc.ClientStream
 	constantMessage interface{}
-	setFields map[string]reflect.Value
+	setFields []additionalData
+}
+
+type additionalData struct {
+        Value reflect.Value
+        position []uint8 //more then 254 fields?
 }
 
 func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
@@ -46,7 +51,7 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 		if err := encoding.GetCodec("proto").Unmarshal(protoMsg, d.constantMessage); err != nil {
 			return err
 		}
-		d.setFields = make(map[string]reflect.Value)
+		d.setFields = make([]additionalData)
 		if err := generateSetFields(d.constantMessage, d.setFields); err != nil {
 			return err
 		}
@@ -60,7 +65,7 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 	return nil
 }
 
-func setFields(i *interface{}, fields map[string]reflect.Value) error {
+func setFields(i *interface{}, fields []additionalData) error {
 	if receiverVal, ok := firstStruct(reflect.ValueOf(i)); ok {
 		for k, v := range fields {
 			fieldPath := strings.Split(k, ".")
@@ -99,12 +104,12 @@ func newEmpty(t interface{}) interface{} {
 }
 
 
-func generateSetFields(target interface{}, setFields map[string]reflect.Value) error {
+func generateSetFields(target interface{}, setFields *[]additionalData) error {
 	donorVal := reflect.ValueOf(target).Elem()
-	return abstractSetFields(donorVal, setFields, "")
+	return abstractSetFields(donorVal, setFields, make([]int))
 }
 
-func abstractSetFields(donorVal reflect.Value, aMap map[string]reflect.Value, baseString string) error {
+func abstractSetFields(donorVal interface{}, aData *[]additionalData, curPosition []int) error {
 	if !donorVal.IsValid() {
 		return nil
 	}
@@ -116,7 +121,8 @@ func abstractSetFields(donorVal reflect.Value, aMap map[string]reflect.Value, ba
 		if field, ok := firstStruct(donorField); ok {
 			_ = abstractSetFields(field, aMap, fmt.Sprintf("%s%d.", baseString, i))
 		} else if shouldDonate(field) {
-				aMap[fmt.Sprintf("%s%d", baseString, i)] = field
+                                data = additionalData{Value: field, append(/*clone??*/curPosition, i)}
+				append(aData, data)
 		}
 	}
 	return nil
