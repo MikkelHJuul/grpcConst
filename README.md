@@ -26,3 +26,4 @@ see [examples](/examples)
 - test
 - benchmark
 - chaining
+- proto2
