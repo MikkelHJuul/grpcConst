@@ -10,16 +10,26 @@ For a given `message` returned by an RPC. The server sends a defaulting proto ma
 The client side does the most of the work, decoding, unmarshaling and padding the `message` with this data. 
 
 ## Overriding
-Any `message` sent with a value in the same place as the default constant `message` will override the default.  You cannot override the default by setting the value the 0, null, empty string or empty list as they are considered null, you cannot set these values as default,  and that wouldn't make sense a they are default already.
+Any `message` sent with a value in the same place as the default constant `message` 
+will override the default.  
+You cannot override the default by setting the value to 0, null, empty string or empty list as they are considered empty, you cannot set these values as default,  and that wouldn't make sense as they are default already. This is an important limitation; 
+**if you expect to be able to send actual data of value 0, don't set a default on that value! This is a limitation of simple data types.** 
 
 ## Implementation
 This is a golang implementation. The client side is made as an interceptor that decorates the streams' `grpc.ClientStream`, overriding the method `RecvMsg`. 
 
 A client simply initiate it's client connection with an interceptor `grpcConst.StreamClientInterceptor`.
 
-A convenience method `grpcConst.HeaderSetConstant` can be used to construct the header that can be sent using your server-side `stream.SendHeader` before sending messages. 
+A convenience method `grpcConst.HeaderSetConstant` can be used to construct the header that can be sent using your server-side `stream.SendHeader` before sending messages.
+
+## Testing the overhead
+This is tested vs. the gRPC example [`route_guide.proto`](examples/route_guide/proto/route_guide.proto).
+In this example the unmarshalling and figuring the fields to set takes about 1.3 µs. Handling these (two) values on each message takes 100 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 6 ns pr. message (tested on my local pc).
+
+
 ## TODO
 - arrays?
-- test
-- benchmark
+- more tests
+- break even? (how much data should the stream send to break even)
+  - document the proto data overhead
 - chaining
