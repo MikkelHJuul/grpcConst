@@ -102,7 +102,7 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 	if err := d.ClientStream.RecvMsg(m); err != nil {
 		return err
 	}
-	if err := setFields(&m, d.fieldsToSet); err != nil {
+	if err := setFields(m, d.fieldsToSet); err != nil {
 		return err // TODO probably not like this
 	}
 	return nil
@@ -111,7 +111,7 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 //setFields sets the fields, from a map[reflect.Value][]int (a value-key-ish map) to the message.
 //For each value to set. It uses the path to that field (the []int) to set this value to the message
 //Only empty receiver fields have its value overridden
-func setFields(i *interface{}, fields map[reflect.Value][]int) error {
+func setFields(i interface{}, fields map[reflect.Value][]int) error {
 	if fields == nil {
 		return nil
 	}
