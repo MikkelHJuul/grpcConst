@@ -1,7 +1,6 @@
 //grpcConst is a package that allow you to communicate defaulting values of your protobuf messages
 //and communicate this default and set it before your client side code interacts with the messages.
-//examples:
-//	server-side:
+//example server-side:
 // 		func (t *myRPCServer) MyServerStreamRPC(req *proto.Request, stream proto.myRPCServer_MyServerStreamRPCServer) error {
 //			header, err := grpcConst.HeaderSetConstant(
 //							&proto.Feature{
@@ -14,8 +13,8 @@
 //			... this will yield - name: "some constant name", location: {10, 20}
 //			... while sending less data in the message
 //		}
-//	client-side:
-//		initiate your client with a grpc.StreamClientInterceptor this way:
+//example client-side:
+//initiate your client with a grpc.StreamClientInterceptor this way:
 // 		conn, err := grpc.Dial(...,  grpc.WithStreamInterceptor(grpcConst.StreamClientInterceptor()))
 package grpcConst
 
@@ -33,7 +32,8 @@ const XgRPCConst = "x-grpc-const"
 
 //HeaderSetConstant is a convenience method for the server side to add a metadata.MD with the correct content
 // given your gRPC struct v, the user is returned the metadata to send.
-//that the user can send using `grpc.ServerStream:SendHeader(metadate.MD) or :SetHeader(metadate.MD)`.
+//that the user can send using `grpc.ServerStream:SendHeader(metadata.MD) or :SetHeader(metadata.MD)`.
+// v must be passed by reference.
 func HeaderSetConstant(v interface{}) (metadata.MD, error) {
 	msg, err := marshal(v)
 	return metadata.Pairs(XgRPCConst, msg), err
