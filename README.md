@@ -34,5 +34,6 @@ In this example the unmarshalling and figuring the fields to set takes about 1.3
 - more tests
 - break even? (how much data should the stream send to break even)
   - document the proto data overhead
+  - test in real-world example
 - chaining
 - proto2
