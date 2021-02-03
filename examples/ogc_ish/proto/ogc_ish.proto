@@ -1,0 +1,45 @@
+syntax="proto3";
+
+package ogs_ish;
+
+message Feature {
+  string type = 1;
+  string id = 2;
+  Properties properties = 3;
+  Geometry geometry = 4;
+}
+
+message Geometry {
+  string type = 1;
+  repeated Point coordinates = 2;
+}
+
+message Point {
+  int32 latitude = 1;
+  int32 longitude = 2;
+}
+
+message Properties {
+  Measurement measurement = 1;
+  Station station = 10;
+}
+
+message Measurement {
+  string name = 1;
+  float value = 2;
+}
+
+message Station {
+  string name = 1;
+  string metadata = 2;
+}
+
+message FeatureCollectionRequest {
+   string stationName = 1;
+   string measurementName = 2;
+}
+
+service OGCishService {
+  rpc Items(FeatureCollectionRequest) returns (stream Feature);
+  rpc ItemsNogRPCConst(FeatureCollectionRequest) returns (stream Feature);
+}
