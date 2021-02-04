@@ -11,7 +11,7 @@ message Feature {
 
 message Geometry {
   string type = 1;
-  repeated Point coordinates = 2;
+  Point coordinates = 2;
 }
 
 message Point {
