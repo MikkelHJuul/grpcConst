@@ -21,6 +21,7 @@ package grpcConst
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
@@ -74,7 +75,14 @@ func unmarshal(header string, receiver interface{}) error {
 type dataAddingClientStream struct {
 	grpc.ClientStream
 	constantMessage interface{}
-	fieldsToSet     map[reflect.Value][]int
+	fieldsToSet     []reflectTree
+}
+
+//reflectTree is a data-structure to save the fields that should be defaulted
+type reflectTree struct {
+	Key      int
+	Value    reflect.Value
+	Branches []reflectTree
 }
 
 //RecvMsg is called via your grpc.ClientStream;
@@ -90,10 +98,11 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 			if err := unmarshal(head[0], d.constantMessage); err != nil {
 				return err // TODO probably not like this
 			}
-			d.fieldsToSet = make(map[reflect.Value][]int)
-			if err := generateSetFields(d.constantMessage, d.fieldsToSet); err != nil {
+			fieldsToSet, err := generateSetFields(d.constantMessage)
+			if err != nil {
 				return err // TODO probably not like this
 			}
+			d.fieldsToSet = fieldsToSet
 			if len(d.fieldsToSet) == 0 {
 				d.fieldsToSet = nil
 			}
@@ -108,27 +117,48 @@ func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
 	return nil
 }
 
-//setFields sets the fields, from a map[reflect.Value][]int (a value-key-ish map) to the message.
+//setFields sets the fields, from a []reflectTree to the message.
 //For each value to set. It uses the path to that field (the []int) to set this value to the message
 //Only empty receiver fields have its value overridden
-func setFields(i interface{}, fields map[reflect.Value][]int) error {
+func setFields(r interface{}, fields []reflectTree) error {
 	if fields == nil {
 		return nil
 	}
-	if receiverVal, ok := firstStruct(reflect.ValueOf(i)); ok {
-		for k, v := range fields {
-			firstField, subStructures := v[0], v[1:]
-			fieldToSet := receiverVal.Field(firstField)
-			for _, i := range subStructures {
-				field, _ := firstStruct(fieldToSet)
-				fieldToSet = field.Field(i)
-			}
-			if isEmptyValue(fieldToSet) {
-				fieldToSet.Set(k)
+	if receiverVal, ok := firstStruct(reflect.ValueOf(r)); ok {
+		for _, leaf := range fields {
+			if err := setAField(leaf, receiverVal); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+func setAField(leaf reflectTree, field reflect.Value) error {
+	theField := field.Field(leaf.Key)
+	if len(leaf.Branches) == 0 {
+		if isEmptyValue(theField) {
+			theField.Set(leaf.Value)
+		}
+		return nil
+	}
+	if theField.Kind() == reflect.Ptr {
+		if theField.IsNil() {
+			theField.Set(leaf.Value)
+			return nil
+		}
+		if nextField, ok := firstStruct(theField); ok {
+			for _, branch := range leaf.Branches {
+				err := setAField(branch, nextField)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("non-nil reflect.Ptr with no sub-structs found")
+	}
+	return fmt.Errorf("you shouldn't be able to hit this")
 }
 
 //firstStruct returns the first non-reflect.Ptr, non-reflect.Interface reflect.Value
@@ -156,18 +186,19 @@ func newEmpty(t interface{}) interface{} {
 
 //generateSetFields an entrypoint given a target populate a
 // map[reflect.Value][]int to the method abstractSetFields
-func generateSetFields(target interface{}, setFields map[reflect.Value][]int) error {
+func generateSetFields(target interface{}) ([]reflectTree, error) {
 	donorVal := reflect.ValueOf(target).Elem()
-	return abstractSetFields(donorVal, setFields, []int(nil))
+	return abstractSetFields(donorVal)
 }
 
 //abstractSetFields is a recursive method that adds all Writable fields
 //that has a nonEmpty value to the given map[reflect.Value][]int
 //it walks the tree of structure fields of the donor. (nested tree of struct)
-func abstractSetFields(donorVal reflect.Value, aMap map[reflect.Value][]int, curPosition []int) error {
+func abstractSetFields(donorVal reflect.Value) ([]reflectTree, error) {
 	if !donorVal.IsValid() {
-		return nil
+		return nil, nil
 	}
+	var tree []reflectTree
 	for i := 0; i < donorVal.NumField(); i++ {
 		donorField := donorVal.Field(i)
 		if !donorField.CanSet() {
@@ -175,15 +206,22 @@ func abstractSetFields(donorVal reflect.Value, aMap map[reflect.Value][]int, cur
 			//This check also allow skipping the check on the method #setFields
 			continue
 		}
-		nextPosition := append(curPosition, i)
-		if field, ok := firstStruct(donorField); ok {
+		leaf := reflectTree{
+			Key:      i,
+			Value:    donorField,
+			Branches: []reflectTree{},
+		}
+		field, ok := firstStruct(donorField)
+		if ok {
 			//nested structs
-			_ = abstractSetFields(field, aMap, nextPosition)
-		} else if shouldDonate(field) {
-			aMap[field] = nextPosition
+			branches, _ := abstractSetFields(field)
+			leaf.Branches = branches
+		}
+		if shouldDonate(field) {
+			tree = append(tree, leaf)
 		}
 	}
-	return nil
+	return tree, nil
 }
 
 //shouldDonate helps determine whether or not to donate a field to the message
