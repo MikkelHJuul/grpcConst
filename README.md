@@ -26,14 +26,14 @@ see [examples](/examples)
 
 ## Testing the overhead
 This is tested vs. the gRPC example [`route_guide.proto`](examples/route_guide/proto/route_guide.proto).
-In this example the unmarshalling and figuring the fields to set takes about 1.3 µs. Handling these (two) values on each message takes 100 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 6 ns pr. message (tested on my local pc).
+In this example the unmarshalling and figuring the fields to set takes about 1 µs. Handling these (two) values on each message takes 60 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 6 ns pr. message (tested on my local pc).
 
+Locally using this specification does not make much sense (for a local connection using this package is about 14% slower), but this should help you if your network/ infrastructure is network I/O limited.
 
 ## TODO
-- arrays?
 - more tests
 - break even? (how much data should the stream send to break even)
   - document the proto data overhead
-  - test in real-world example
+  - test in real-world example: non-local servers
 - chaining
 - proto2
