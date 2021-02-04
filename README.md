@@ -36,4 +36,6 @@ Locally using this specification does not make much sense (for a local connectio
   - document the proto data overhead
   - test in real-world example: non-local servers
 - chaining
-- proto2
+- test proto2
+- test non-nil structs in header
+- break up merge code
