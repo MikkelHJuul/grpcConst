@@ -38,3 +38,4 @@ As a side-note (anecdotal evidence), when in a video-conference the local client
   - test in real-world example: non-local servers
 - chaining
 - test proto2
+- client send header: `x-grpc-const` to signal for the server that they should send header and don't have to send the extra data. 
