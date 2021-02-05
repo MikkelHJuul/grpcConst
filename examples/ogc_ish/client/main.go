@@ -63,7 +63,7 @@ func performRequest(client pb.OGCishServiceClient, ctx context.Context, request 
 		if err != nil {
 			log.Fatalf("Failed to receive a note : %v", err)
 		}
-		//log.Printf("%v+", msg) uncomment to see the message (and save to msg)
+		//log.Printf("%v+", msg) //uncomment to see the message (and save to msg)
 		count++
 	}
 	log.Printf("Number returned: %d", count)

@@ -2,6 +2,7 @@ package grpcConst
 
 import (
 	"github.com/MikkelHJuul/grpcConst/examples/route_guide/proto"
+	"github.com/MikkelHJuul/grpcConst/merge"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"reflect"
@@ -23,8 +24,8 @@ func (t *testClientStream) Header() (metadata.MD, error) {
 }
 
 type fields struct {
-	ClientStream    grpc.ClientStream
-	constantMessage interface{}
+	ClientStream grpc.ClientStream
+	merger       merge.Merger
 }
 type args struct {
 	m interface{}
@@ -37,9 +38,8 @@ type testType struct {
 
 func benchmarkDataaddingclientstreamRecvmsgTest(tt testType, b *testing.B) {
 	d := &dataAddingClientStream{
-		ClientStream:    tt.fields.ClientStream,
-		constantMessage: tt.fields.constantMessage,
-		fieldsToSet:     nil,
+		ClientStream: tt.fields.ClientStream,
+		merger:       tt.fields.merger,
 	}
 	for n := 0; n < b.N; n++ {
 		if err := d.RecvMsg(tt.args.m); err != nil {
@@ -50,8 +50,8 @@ func benchmarkDataaddingclientstreamRecvmsgTest(tt testType, b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 	tests := testType{fields{
-		ClientStream:    &testClientStream{},
-		constantMessage: nil,
+		ClientStream: &testClientStream{},
+		merger:       merge.Merger{Initiated: false},
 	},
 		args{m: &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
@@ -59,8 +59,8 @@ func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 	tests := testType{fields{
-		ClientStream:    &testClientStream{},
-		constantMessage: &proto.Feature{}, //non-nil
+		ClientStream: &testClientStream{},
+		merger:       merge.Merger{Initiated: true},
 	},
 		args{m: &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
@@ -68,8 +68,8 @@ func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNeverWrite(b *testing.B) {
 	tests := testType{fields{
-		ClientStream:    &testClientStream{},
-		constantMessage: nil,
+		ClientStream: &testClientStream{},
+		merger:       merge.Merger{Initiated: false},
 	},
 		args{m: &proto.Feature{Name: "hey", Location: &proto.Point{Latitude: 12, Longitude: 21}}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)

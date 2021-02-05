@@ -26,9 +26,10 @@ see [examples](/examples)
 
 ## Testing the overhead
 This is tested vs. the gRPC example [`route_guide.proto`](examples/route_guide/proto/route_guide.proto).
-In this example the unmarshalling and figuring the fields to set takes about 1 µs. Handling these (two) values on each message takes 60 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 6 ns pr. message (tested on my local pc).
+In this example the unmarshalling and figuring the fields to set takes about 1 µs. Handling these (two) values on each message takes 45 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 7 ns pr. message (tested on my local pc).
 
-Locally using this specification does not make much sense (for a local connection using this package is about 14% slower), but this should help you if your network/ infrastructure is network I/O limited.
+Locally using this specification does not make much sense (for a local connections, using this package is about 14% slower (than simply receiving a datapoint - once you start handling data you quickly wash out the difference)), but this should help you if your network/ infrastructure is network I/O limited.
+As a side-note (anecdotal evidence), when in a video-conference the local clients that uses this library (and one that does not) starts performing more evenly (to see this example check [`example/ogc_ish`](examples/ogc_ish)).
 
 ## TODO
 - more tests
@@ -37,5 +38,3 @@ Locally using this specification does not make much sense (for a local connectio
   - test in real-world example: non-local servers
 - chaining
 - test proto2
-- test non-nil structs in header
-- break up merge code
