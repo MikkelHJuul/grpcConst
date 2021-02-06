@@ -48,6 +48,7 @@ func StreamClientInterceptor() grpc.StreamClientInterceptor {
 		parentCtx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
 		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		var stream, err = streamer(parentCtx, desc, cc, method, opts...)
+		stream.SetHeader(metadata.MD{XgRPCConst: []string{""}})
 		return &dataAddingClientStream{stream, merge.Merger{Initiated: false}}, err
 	}
 }
