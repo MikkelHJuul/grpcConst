@@ -20,16 +20,20 @@ import (
 	"reflect"
 )
 
-type Merger struct {
+type merger struct {
 	mergeValues []reflectTree
 	Initiated   bool
+}
+
+type Merger interface {
+	SetFields(interface{}) error
 }
 
 //NewMerger initiates the Merger, populating the []reflectTree
 //for future merging of pointer targets
 //panics if the donor is not a pointer
 func NewMerger(donor interface{}) Merger {
-	mrgr := Merger{Initiated: true}
+	mrgr := merger{Initiated: true}
 	fieldsToSet, err := abstractSetFields(reflect.ValueOf(donor).Elem())
 	if err != nil {
 		//handle? log?
@@ -53,7 +57,7 @@ type reflectTree struct {
 //Only empty receiver fields have its value overridden
 //panics on non-pointer values 'r'
 //   checking and returning an error costs 3 ns pr. msg mapped, and it doesn't provide you with
-func (m Merger) SetFields(r interface{}) error {
+func (m merger) SetFields(r interface{}) error {
 	if m.mergeValues == nil {
 		return nil
 	}
