@@ -41,15 +41,31 @@ func HeaderSetConstant(v interface{}) (metadata.MD, error) {
 	return metadata.Pairs(XgRPCConst, msg), err
 }
 
+//ServerStreamWrapper wraps your stream object and returns the decorated stream with a SendMsg method,
+//that removes items that are equal a reference object.
+//The stream remains untouched if the client did not send an XgRPCConst header
+func ServerStreamWrapper(reference interface{}) (stream grpc.ServerStream, err error) {
+	if md, ok := metadata.FromIncomingContext(stream.Context()); ok && len(md.Get(XgRPCConst)) > 0 {
+		md, err = HeaderSetConstant(reference)
+		if err != nil {
+			return
+		}
+		stream.SetHeader(md)
+		reducer := merge.NewReducer(reference)
+		stream = &dataRemovingServerStream{stream, reducer}
+	}
+	return
+}
+
 //StreamClientInterceptor is an interceptor for the client side (for unidirectional server-side streaming rpc's)
 //The client side Stream interceptor intercepts the stream when it is initiated. This method decorates the actual ClientStream
 func StreamClientInterceptor() grpc.StreamClientInterceptor {
 	return func(
 		parentCtx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
 		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		var stream, err = streamer(parentCtx, desc, cc, method, opts...)
-		stream.SetHeader(metadata.MD{XgRPCConst: []string{""}})
-		return &dataAddingClientStream{stream, merge.Merger{Initiated: false}}, err
+		ctx := metadata.AppendToOutgoingContext(parentCtx, XgRPCConst, "")
+		var stream, err = streamer(ctx, desc, cc, method, opts...)
+		return &dataAddingClientStream{stream, nil}, err
 	}
 }
 
@@ -65,10 +81,7 @@ func unmarshal(header string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err := encoding.GetCodec("proto").Unmarshal(protoMsg, receiver); err != nil {
-		return err
-	}
-	return nil
+	return encoding.GetCodec("proto").Unmarshal(protoMsg, receiver)
 }
 
 //dataAddingClientStream is the decorated grpc.ClientStream
@@ -76,31 +89,43 @@ func unmarshal(header string, receiver interface{}) error {
 //the intermediary construct fieldToSet is used to remove to need to traverse the entire message
 type dataAddingClientStream struct {
 	grpc.ClientStream
-	merger merge.Merger
+	Merger merge.Merger
+}
+
+type dataRemovingServerStream struct {
+	grpc.ServerStream
+	Reducer merge.Reducer
 }
 
 //RecvMsg is called via your grpc.ClientStream;
 //the generated code's method Recv calls this method on it's internal grpc.ClientStream
 //This method initiates on first call the fields that should be default to all the messages
 //on all calls the underlying grpc.ClientStream:RecvMsg message has this data added
-func (d *dataAddingClientStream) RecvMsg(m interface{}) error {
-	if !d.merger.Initiated {
+func (dc *dataAddingClientStream) RecvMsg(m interface{}) error {
+	if dc.Merger == nil {
 		donor := newEmpty(m)
-		header, _ := d.ClientStream.Header()
+		header, _ := dc.ClientStream.Header()
 		if head, ok := header[XgRPCConst]; ok && len(head) > 0 {
 			if err := unmarshal(head[0], donor); err != nil {
 				log.Printf("ERROR: an %s-header could not be unmarshalled correctly: %v", XgRPCConst, head)
 			}
 		}
-		d.merger = merge.NewMerger(donor)
+		dc.Merger = merge.NewMerger(donor)
 	}
-	if err := d.ClientStream.RecvMsg(m); err != nil {
+	if err := dc.ClientStream.RecvMsg(m); err != nil {
 		return err
 	}
-	return d.merger.SetFields(m)
+	return dc.Merger.SetFields(m)
 }
 
 //newEmpty simply creates a new instance of an interface given an instance of that interface
 func newEmpty(t interface{}) interface{} {
 	return reflect.New(reflect.TypeOf(t).Elem()).Interface()
+}
+
+func (ds *dataRemovingServerStream) SendMsg(m interface{}) error {
+	if err := ds.Reducer.RemoveFields(m); err != nil {
+		log.Printf("ERROR: could not remove fields from %v", m)
+	}
+	return ds.ServerStream.SendMsg(m)
 }

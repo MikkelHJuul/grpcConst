@@ -75,3 +75,45 @@ func TestMerger_SetFields(t *testing.T) {
 		})
 	}
 }
+
+func TestDataIsDeepCopied(t *testing.T) {
+	donor, receiver, result :=
+		&testStruct{
+			Sub: nested{1},
+		},
+		&testStruct{
+			Obj: "hello",
+		},
+		&testStruct{
+			Obj: "hello",
+			Sub: nested{1},
+		}
+	m := NewMerger(donor)
+	_ = m.SetFields(receiver)
+	if receiver.Obj != result.Obj || receiver.Sub.Some != result.Sub.Some {
+		t.Error("The objects are not equal")
+	}
+	donor.Sub.Some = 3
+	if receiver.Obj != result.Obj || receiver.Sub.Some != result.Sub.Some {
+		t.Error("The objects are not equal")
+	}
+}
+
+func TestReducerReduces(t *testing.T) {
+	reference, subject, result :=
+		&testStruct{
+			Obj: "hello",
+		},
+		&testStruct{
+			Obj: "hello",
+			Sub: nested{1},
+		},
+		&testStruct{
+			Sub: nested{1},
+		}
+	r := NewReducer(reference)
+	_ = r.RemoveFields(subject)
+	if subject.Obj != result.Obj || subject.Sub.Some != result.Sub.Some {
+		t.Error("The objects are not equal")
+	}
+}
