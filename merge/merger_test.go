@@ -117,3 +117,26 @@ func TestReducerReduces(t *testing.T) {
 		t.Error("The objects are not equal")
 	}
 }
+
+func TestMergeMap(t *testing.T) {
+	type objWithMap struct {
+		Name string
+		Obj  map[string]string
+	}
+	donor, receiver, result :=
+		&objWithMap{
+			Obj: map[string]string{"hell": "world"},
+		},
+		&objWithMap{
+			Name: "hello",
+		},
+		&objWithMap{
+			Name: "hello",
+			Obj:  map[string]string{"hell": "world"},
+		}
+	m := NewMerger(donor)
+	_ = m.SetFields(receiver)
+	if receiver.Obj["hell"] != result.Obj["hell"] || receiver.Name != result.Name {
+		t.Error("The objects are not equal")
+	}
+}
