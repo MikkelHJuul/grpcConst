@@ -19,10 +19,12 @@
 //			err := aReducer.aReducer.RemoveFields(&item)
 //			... item will have fields removed by comparing with the default values from objectWithDefaultValues
 //		}
+//Limitation:
+//You cannot merge a field of type interface{}
+//You might get unwanted behavior when reducing any reflect.Map, reflect.Slice, reflect.Array, reflect.Func, reflect.Invalid
 package merge
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -131,7 +133,7 @@ func doWithAField(leaf reflectTree, field reflect.Value,
 	hitFunc func(target reflect.Value, source ValueWrapper),
 	returnOnPtrNil bool) error {
 	theField := field.Field(leaf.Key)
-	if len(leaf.Branches) == 0 {
+	if leaf.Branches == nil {
 		hitFunc(theField, leaf.Value)
 		return nil
 	}
@@ -144,10 +146,19 @@ func doWithAField(leaf reflectTree, field reflect.Value,
 		}
 		theField = theField.Elem()
 	}
-	for _, branch := range leaf.Branches {
-		return doWithAField(branch, theField, hitFunc, returnOnPtrNil)
+	if len(leaf.Branches) == 0 {
+		if theField.IsZero() {
+			theField.Set(reflect.New(leaf.Value.Value.Type()).Elem())
+		}
+		return nil
+	} else {
+		for _, branch := range leaf.Branches {
+			if err := doWithAField(branch, theField, hitFunc, returnOnPtrNil); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	return fmt.Errorf("you shouldn't be able to hit this")
 }
 
 //abstractSetFields is a recursive method that adds all Writable fields
@@ -173,12 +184,14 @@ func abstractSetFields(donorVal reflect.Value) ([]reflectTree, error) {
 		leaf := reflectTree{
 			Key:      i,
 			Value:    ValueWrapper{field, get, check},
-			Branches: []reflectTree{},
+			Branches: nil,
 		}
 		if field.Kind() == reflect.Struct {
 			//nested structs
-			branches, _ := abstractSetFields(field)
-			leaf.Branches = branches
+			leaf.Branches, _ = abstractSetFields(field)
+			if leaf.Branches == nil {
+				leaf.Branches = []reflectTree{}
+			}
 		}
 		if !leaf.Value.HasNoValue(field) {
 			tree = append(tree, leaf)
@@ -219,9 +232,6 @@ func getValueMethods(v reflect.Value) (getterFunction, emptyCheckerFunction) {
 	case reflect.Invalid:
 		return func(value reflect.Value) interface{} { return nil },
 			func(value reflect.Value) bool { return true }
-	case reflect.Struct:
-		return func(value reflect.Value) interface{} { return nil },
-			func(value reflect.Value) bool { return value.IsZero() }
 	}
 	return func(value reflect.Value) interface{} { return nil },
 		func(value reflect.Value) bool { return false }
