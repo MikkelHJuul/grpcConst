@@ -2,21 +2,21 @@
 //and communicate this default and set it before your client side code interacts with the messages.
 //example server-side:
 //		header, err := grpcConst.HeaderSetConstant(
-//					&proto.Feature{
-//						Name: "some constant name",
-//						Location: &proto.Point{Latitude: 10}
-//				})
+//				&proto.Feature{
+//					Name: "some constant name",
+//					Location: &proto.Point{Latitude: 10}
+//		})
 //		stream.SetHeader(header)
 //			... your normal routine but you could
 //			... fx send &proto.Feature{Location: &proto.Point{Longitude: 20}}
 //			... this will yield - name: "some constant name", location: {10, 20}
 //			... while sending less data in the message
 //or:
-//              stream = grpcConst.ServerStreMWrapper(
-//					&proto.Feature{
-//						Name: "some constant name",
-//						Location: &proto.Point{Latitude: 10}
-//				})
+//      stream = grpcConst.ServerStreMWrapper(
+//				&proto.Feature{
+//					Name: "some constant name",
+//					Location: &proto.Point{Latitude: 10}
+//		})
 //			... using stream.Send() now removes the default values from your objects; sending less data
 //example client-side:
 //initiate your client with a grpc.StreamClientInterceptor this way:
