@@ -4,7 +4,6 @@ import (
 	ogcIsh "github.com/MikkelHJuul/grpcConst/examples/ogc_ish/proto"
 	"github.com/MikkelHJuul/grpcConst/examples/route_guide/proto"
 	"github.com/MikkelHJuul/grpcConst/merge"
-	"github.com/imdario/mergo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"testing"
