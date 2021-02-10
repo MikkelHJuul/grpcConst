@@ -13,6 +13,12 @@
 //			err := aMerger.SetFields(&item)
 //			... item will receive non-zero/non-nil fields from objectWithDefaultValues
 //		}
+//or:
+//		aReducer := merge.NewReducer(&objectWithDefaultValues)
+//		for _, item := range myItems {
+//			err := aReducer.aReducer.RemoveFields(&item)
+//			... item will have fields removed by comparing with the default values from objectWithDefaultValues
+//		}
 package merge
 
 import (
@@ -61,6 +67,7 @@ func NewMerger(donor interface{}) Merger {
 	return merger
 }
 
+//NewReducer initiates a merger and returns its Reducer
 func NewReducer(reference interface{}) Reducer {
 	return NewMerger(reference).GetReducer()
 }
@@ -72,13 +79,13 @@ type reflectTree struct {
 	Branches []reflectTree
 }
 
-type GetterFunction func(reflect.Value) interface{}
-type EmptyCheckerFunction func(reflect.Value) bool
+type getterFunction func(reflect.Value) interface{}
+type emptyCheckerFunction func(reflect.Value) bool
 
 type ValueWrapper struct {
 	Value      reflect.Value
-	GetValue   GetterFunction
-	HasNoValue EmptyCheckerFunction
+	GetValue   getterFunction
+	HasNoValue emptyCheckerFunction
 }
 
 //SetFields sets the fields, from a []reflectTree to the message.
@@ -90,6 +97,7 @@ func (m reflectTree) SetFields(r interface{}) error {
 	return scanAll(m, r, setAField, false)
 }
 
+//RemoveFields removes fields from the subject that are equal to the reference
 func (m reflectTree) RemoveFields(subject interface{}) error {
 	return scanAll(m, subject, removeAField, true)
 }
@@ -179,7 +187,7 @@ func abstractSetFields(donorVal reflect.Value) ([]reflectTree, error) {
 	return tree, nil
 }
 
-func getValueMethods(v reflect.Value) (GetterFunction, EmptyCheckerFunction) {
+func getValueMethods(v reflect.Value) (getterFunction, emptyCheckerFunction) {
 	switch v.Kind() {
 	case reflect.Bool:
 		return func(value reflect.Value) interface{} { return value.Bool() },
