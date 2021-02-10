@@ -1,18 +1,23 @@
 //grpcConst is a package that allow you to communicate defaulting values of your protobuf messages
 //and communicate this default and set it before your client side code interacts with the messages.
 //example server-side:
-// 		func (t *myRPCServer) MyServerStreamRPC(req *proto.Request, stream proto.myRPCServer_MyServerStreamRPCServer) error {
-//			header, err := grpcConst.HeaderSetConstant(
-//							&proto.Feature{
-//								Name: "some constant name",
-//								Location: &proto.Point{Latitude: 10}
-//					 	})
-//			stream.SetHeader(header)
+//		header, err := grpcConst.HeaderSetConstant(
+//					&proto.Feature{
+//						Name: "some constant name",
+//						Location: &proto.Point{Latitude: 10}
+//				})
+//		stream.SetHeader(header)
 //			... your normal routine but you could
 //			... fx send &proto.Feature{Location: &proto.Point{Longitude: 20}}
 //			... this will yield - name: "some constant name", location: {10, 20}
 //			... while sending less data in the message
-//		}
+//or:
+//              stream = grpcConst.ServerStreMWrapper(
+//					&proto.Feature{
+//						Name: "some constant name",
+//						Location: &proto.Point{Latitude: 10}
+//				})
+//			... using stream.Send() now removes the default values from your objects; sending less data
 //example client-side:
 //initiate your client with a grpc.StreamClientInterceptor this way:
 // 		conn, err := grpc.Dial(...,  grpc.WithStreamInterceptor(grpcConst.StreamClientInterceptor()))
