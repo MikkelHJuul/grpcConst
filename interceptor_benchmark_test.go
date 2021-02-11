@@ -11,6 +11,7 @@ import (
 
 type testClientStream struct {
 	grpc.ClientStream
+	header string
 }
 
 func (t *testClientStream) RecvMsg(_ interface{}) error {
@@ -19,7 +20,7 @@ func (t *testClientStream) RecvMsg(_ interface{}) error {
 
 func (t *testClientStream) Header() (metadata.MD, error) {
 	return map[string][]string{
-		XgRPCConst: []string{"EgQICxAW"},
+		XgRPCConst: {t.header},
 	}, nil
 }
 
@@ -50,8 +51,8 @@ func benchmarkDataaddingclientstreamRecvmsgTest(tt testType, b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{},
-		merger:       merge.NewMerger(&proto.Feature{Name: "hello"}),
+		ClientStream: &testClientStream{header: "EgQICxAW"},
+		merger:       nil,
 	},
 		args{m: &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
@@ -59,7 +60,7 @@ func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{},
+		ClientStream: &testClientStream{header: "EgQICxAW"},
 		merger:       merge.NewMerger(&proto.Feature{}),
 	},
 		args{m: &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}}}}
@@ -68,8 +69,8 @@ func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNeverWrite(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{},
-		merger:       merge.NewMerger(&proto.Feature{Name: "hello"}),
+		ClientStream: &testClientStream{header: "EgQICxAW"},
+		merger:       nil,
 	},
 		args{m: &proto.Feature{Name: "hey", Location: &proto.Point{Latitude: 12, Longitude: 21}}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
@@ -77,27 +78,18 @@ func BenchmarkDataAddingClientStream_RecvMsgNeverWrite(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgLarger(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{},
-		merger: merge.NewMerger(&ogcIsh.Feature{
-			Type: "Feature",
-			Properties: &ogcIsh.Properties{
-				Measurement: &ogcIsh.Measurement{
-					Name: "John",
-				},
-				Station: &ogcIsh.Station{
-					Name:     "Some Station Name",
-					Metadata: "Some station's metadata, a short story",
-				},
-			},
-			Geometry: &ogcIsh.Geometry{
-				Type: "Lol",
-				Coordinates: &ogcIsh.Point{
-					Latitude:  123,
-					Longitude: 321,
-				},
-			},
-		})},
+		ClientStream: &testClientStream{header: "CgdGZWF0dXJlGkUKBgoESm9oblI7ChFTb21lIFN0YXRpb24gTmFtZRImU29tZSBzdGF0aW9uJ3MgbWV0YWRhdGEsIGEgc2hvcnQgc3RvcnkiDAoDTG9sEgUIexDBAg=="},
+		merger:       nil},
 		args{m: &ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}}},
 	}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
+}
+
+func BenchmarkInitiation(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		stream := &dataAddingClientStream{
+			&testClientStream{header: "CgdGZWF0dXJlGkUKBgoESm9oblI7ChFTb21lIFN0YXRpb24gTmFtZRImU29tZSBzdGF0aW9uJ3MgbWV0YWRhdGEsIGEgc2hvcnQgc3RvcnkiDAoDTG9sEgUIexDBAg=="},
+			nil}
+		_ = stream.RecvMsg(&ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}})
+	}
 }
