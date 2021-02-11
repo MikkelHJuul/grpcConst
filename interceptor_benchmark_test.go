@@ -93,3 +93,29 @@ func BenchmarkInitiation(b *testing.B) {
 		_ = stream.RecvMsg(&ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}})
 	}
 }
+
+func BenchmarkPreCompiled(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		f := &ogcIsh.Feature{
+			Type: "Feature",
+			Properties: &ogcIsh.Properties{
+				Measurement: &ogcIsh.Measurement{
+					Name: "John",
+				},
+				Station: &ogcIsh.Station{
+					Name:     "Some Station Name",
+					Metadata: "Some station's metadata, a short story",
+				},
+			},
+			Geometry: &ogcIsh.Geometry{
+				Type: "Lol",
+				Coordinates: &ogcIsh.Point{
+					Latitude:  123,
+					Longitude: 321,
+				},
+			},
+		}
+		f.DoMerge(
+			&ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}})
+	}
+}

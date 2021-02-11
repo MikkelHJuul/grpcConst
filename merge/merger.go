@@ -20,8 +20,8 @@
 //			... item will have fields removed by comparing with the default values from objectWithDefaultValues
 //		}
 //Limitation:
-//You cannot merge a field of type interface{}
-//You might get unwanted behavior when reducing any reflect.Map, reflect.Slice, reflect.Array, reflect.Func, reflect.Invalid
+//Merging an interface has limitations!
+//You might get unwanted behavior when reducing any reflect.[Map, Interface, Slice, Array, Func, Invalid]
 package merge
 
 import (
@@ -172,7 +172,7 @@ func abstractSetFields(donorVal reflect.Value) ([]reflectTree, error) {
 	for i := 0; i < donorVal.NumField(); i++ {
 		donorField := donorVal.Field(i)
 		var field = donorField
-		for field.IsValid() && (field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface) {
+		for field.IsValid() && (field.Kind() == reflect.Ptr) {
 			field = field.Elem()
 		}
 		if !field.CanSet() {
@@ -221,11 +221,8 @@ func getValueMethods(v reflect.Value) (getterFunction, emptyCheckerFunction) {
 		return func(value reflect.Value) interface{} { return nil },
 			func(value reflect.Value) bool { return value.Len() == 0 }
 	case reflect.Interface, reflect.Ptr:
-		if v.IsNil() {
-			return func(value reflect.Value) interface{} { return nil },
-				func(value reflect.Value) bool { return true }
-		}
-		return getValueMethods(v.Elem())
+		return func(value reflect.Value) interface{} { return nil },
+			func(value reflect.Value) bool { return value.IsNil() }
 	case reflect.Func:
 		return func(value reflect.Value) interface{} { return nil },
 			func(value reflect.Value) bool { return v.IsNil() }

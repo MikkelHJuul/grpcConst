@@ -8,11 +8,20 @@ import (
 )
 
 type nested struct {
-	Some int
+	Some interface{}
 }
 type testStruct struct {
 	Obj string
 	Sub nested
+}
+type someInterface interface{}
+type testWithInterface struct {
+	NonInterface string
+	InterfaceObj someInterface
+}
+type objWithMap struct {
+	Name string
+	Obj  map[string]string
 }
 
 func TestMerger_SetFields(t *testing.T) {
@@ -24,7 +33,7 @@ func TestMerger_SetFields(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "",
+			name: "Test ogcIsh merge",
 			donor: &ogcish.Feature{Geometry: &ogcish.Geometry{
 				Type: "origin",
 				Coordinates: &ogcish.Point{
@@ -50,7 +59,7 @@ func TestMerger_SetFields(t *testing.T) {
 			},
 		},
 		{
-			name: "",
+			name: "Test nested interface{} (simple type)",
 			donor: &testStruct{
 				Sub: nested{1},
 			},
@@ -60,6 +69,62 @@ func TestMerger_SetFields(t *testing.T) {
 			result: &testStruct{
 				Obj: "asd",
 				Sub: nested{1},
+			},
+		},
+		{
+			name: "Test intermediate interface - nil",
+			receiver: &testStruct{
+				Sub: nested{1},
+			},
+			donor: &testStruct{
+				Obj: "hello",
+				Sub: nested{"Hello"},
+			},
+			result: &testStruct{
+				Obj: "hello",
+				Sub: nested{1},
+			},
+		},
+		{
+			name: "insert intermediate interface object",
+			donor: &testWithInterface{
+				NonInterface: "hello",
+				InterfaceObj: testWithInterface{"HelloNested", 1},
+			},
+			receiver: &testWithInterface{
+				NonInterface: "he11o",
+			},
+			result: &testWithInterface{
+				NonInterface: "he11o",
+				InterfaceObj: testWithInterface{"HelloNested", 1},
+			},
+		},
+		{
+			name: "you can only replace the entire interface!",
+			donor: &testWithInterface{
+				NonInterface: "hello",
+				InterfaceObj: testWithInterface{"HelloNested", nil},
+			},
+			receiver: &testWithInterface{
+				NonInterface: "he11o",
+				InterfaceObj: testWithInterface{"", 1},
+			},
+			result: &testWithInterface{ //helloNested is not merged!
+				NonInterface: "he11o",
+				InterfaceObj: testWithInterface{"", 1},
+			},
+		},
+		{
+			name: "Test with a Map",
+			donor: &objWithMap{
+				Obj: map[string]string{"hell": "world"},
+			},
+			receiver: &objWithMap{
+				Name: "hello",
+			},
+			result: &objWithMap{
+				Name: "hello",
+				Obj:  map[string]string{"hell": "world"},
 			},
 		},
 	}
@@ -93,6 +158,7 @@ func TestDataIsDeepCopied(t *testing.T) {
 	if receiver.Obj != result.Obj || receiver.Sub.Some != result.Sub.Some {
 		t.Error("The objects are not equal")
 	}
+	// changing the donor-value doesn't change the receiver's value!
 	donor.Sub.Some = 3
 	if receiver.Obj != result.Obj || receiver.Sub.Some != result.Sub.Some {
 		t.Error("The objects are not equal")
@@ -114,29 +180,6 @@ func TestReducerReduces(t *testing.T) {
 	r := NewReducer(reference)
 	_ = r.RemoveFields(subject)
 	if subject.Obj != result.Obj || subject.Sub.Some != result.Sub.Some {
-		t.Error("The objects are not equal")
-	}
-}
-
-func TestMergeMap(t *testing.T) {
-	type objWithMap struct {
-		Name string
-		Obj  map[string]string
-	}
-	donor, receiver, result :=
-		&objWithMap{
-			Obj: map[string]string{"hell": "world"},
-		},
-		&objWithMap{
-			Name: "hello",
-		},
-		&objWithMap{
-			Name: "hello",
-			Obj:  map[string]string{"hell": "world"},
-		}
-	m := NewMerger(donor)
-	_ = m.SetFields(receiver)
-	if receiver.Obj["hell"] != result.Obj["hell"] || receiver.Name != result.Name {
 		t.Error("The objects are not equal")
 	}
 }
