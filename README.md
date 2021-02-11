@@ -31,13 +31,29 @@ see [examples](/examples)
 ## Testing the overhead
 This is tested vs. the gRPC example [`route_guide.proto`](examples/route_guide/proto/route_guide.proto).
 In this example the unmarshalling and figuring the fields to set takes about 1 µs. Handling these (two) values on each message takes 45 ns (whether you set a value or not). When no header is sent, the overhead of the clientStream is 7 ns pr. message (tested on my local pc).
-
-Locally using this specification does not make much sense (for a local connections, using this package is about 14% slower (than simply receiving a datapoint - once you start handling data you quickly wash out the difference)), but this should help you if your network/ infrastructure is network I/O limited.
-As a side-note (anecdotal evidence), when in a video-conference the local clients that uses this library (and one that does not) starts performing more evenly (to see this example check [`example/ogc_ish`](examples/ogc_ish)).
-
+```
+BenchmarkDataAddingClientStream_RecvMsgSimple           # This merges two values into an object
+BenchmarkDataAddingClientStream_RecvMsgSimple-8       	15383833            67.5 ns/op
+BenchmarkDataAddingClientStream_RecvMsgNil              # This doesn't initiate anything
+BenchmarkDataAddingClientStream_RecvMsgNil-8          	86265670            14.2 ns/op
+BenchmarkDataAddingClientStream_RecvMsgNeverWrite       # This checks for the values but never writes them
+BenchmarkDataAddingClientStream_RecvMsgNeverWrite-8   	16704519            67.8 ns/op
+BenchmarkDataAddingClientStream_RecvMsgLarger           # This merges 12 default values
+BenchmarkDataAddingClientStream_RecvMsgLarger-8       	5098196             231 ns/op
+BenchmarkInitiation                                     # Initiation and merge one message
+BenchmarkInitiation-8                                   239176              4349 ns/op
+```
+Locally using this specification does not make much sense, but this should help you if your network/ infrastructure is network I/O limited.
+As a side-note (anecdotal evidence), when in a video-conference the local clients that uses this library (and one that does not) starts performing more evenly (to see this example check [`example/ogc_ish`](examples/ogc_ish)). <br>
+To compare with [`imdario/mergo`](https://github.com/imdario/mergo) (which is not at all fair, as the focus is on safety and configurability, not performance) a benchmark on my computer, says (this is the same result as `BenchmarkInitiation`):
+```
+BenchmarkMergo
+BenchmarkMergo-8   	  159506	      6740 ns/op
+```
 ## TODO
 - more tests
 - break even? (how much data should the stream send to break even)
   - document the proto data overhead
   - test in real-world example: non-local servers
 - test proto2
+- allow merging `interface{}`
