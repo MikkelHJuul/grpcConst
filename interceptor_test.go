@@ -17,20 +17,21 @@ func TestHeaderSetConstant(t *testing.T) {
 		args    args
 		want    metadata.MD
 		wantErr bool
-	}{{
-		name: "a simple obj header",
-		args: args{&proto.Feature{
-			Name: "",
-			Location: &proto.Point{
-				Latitude:  11,
-				Longitude: 22,
+	}{
+		{
+			name: "a simple obj header",
+			args: args{&proto.Feature{
+				Name: "",
+				Location: &proto.Point{
+					Latitude:  11,
+					Longitude: 22,
+				},
+			}},
+			want: map[string][]string{
+				XgRPCConst: {"EgQICxAW"},
 			},
-		}},
-		want: map[string][]string{
-			XgRPCConst: {"EgQICxAW"},
+			wantErr: false,
 		},
-		wantErr: false,
-	},
 		{
 			name: "a large obj header",
 			args: args{&ogcIsh.Feature{
