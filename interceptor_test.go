@@ -33,6 +33,14 @@ func TestHeaderSetConstant(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "an empty Obj",
+			args: args{&proto.Feature{}},
+			want: map[string][]string{
+				XgRPCConst: {""},
+			},
+			wantErr: false,
+		},
+		{
 			name: "a large obj header",
 			args: args{&ogcIsh.Feature{
 				Type: "Feature",

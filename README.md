@@ -51,7 +51,4 @@ BenchmarkMergo
 BenchmarkMergo-8   	  159506	      6740 ns/op
 ```
 ## TODO
-- more tests
-- break even? (how much data should the stream send to break even)
-  - document the proto data overhead
-  - test in real-world example: non-local servers
+- write merger using protoreflect

@@ -125,7 +125,8 @@ func BenchmarkPreCompiled(b *testing.B) {
 
 func BenchmarkProtoMerge(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		goProto.Merge(&ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}}, &ogcIsh.Feature{
+		f := &ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}}
+		goProto.Merge(f, &ogcIsh.Feature{
 			Type: "Feature",
 			Properties: &ogcIsh.Properties{
 				Measurement: &ogcIsh.Measurement{

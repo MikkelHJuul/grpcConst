@@ -20,8 +20,10 @@
 //			... item will have fields removed by comparing with the default values from objectWithDefaultValues
 //		}
 //Limitation:
-//Merging an interface has limitations!
+//Merging an interface{} has limitations!
 //You might get unwanted behavior when reducing any reflect.[Map, Interface, Slice, Array, Func, Invalid]
+//proto.Merge merges unknownFields, this does not!
+//proto.Merge merges slices, this does not!
 package merge
 
 import (

@@ -1,6 +1,8 @@
 package merge
 
 import (
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
 
@@ -181,5 +183,29 @@ func TestReducerReduces(t *testing.T) {
 	_ = r.RemoveFields(subject)
 	if subject.Obj != result.Obj || subject.Sub.Some != result.Sub.Some {
 		t.Error("The objects are not equal")
+	}
+}
+
+func TestNilMerge(t *testing.T) {
+	dst := &ogcish.Station{}
+	m := NewMerger((*ogcish.Station)(nil))
+	_ = m.SetFields(dst)
+	if !proto.Equal(dst, &ogcish.Station{}) {
+		t.Errorf("destination should be empty after merging from nil message; got:\n%v", prototext.Format(dst))
+	}
+}
+
+func TestNilMessageMerge(t *testing.T) {
+	dst := &ogcish.Station{}
+	m := NewMerger(&ogcish.Station{
+		Name:     "North Pole",
+		Metadata: "That's cold!",
+	})
+	_ = m.SetFields(dst)
+	if !proto.Equal(dst, &ogcish.Station{
+		Name:     "North Pole",
+		Metadata: "That's cold!",
+	}) {
+		t.Errorf("destination should be empty after merging from nil message; got:\n%v", prototext.Format(dst))
 	}
 }
