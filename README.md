@@ -1,6 +1,6 @@
 # gRPC constant
 
-`grpcConst` is a slim reflection based tool to populate the client side data of gRPC calls without having to send that data in every call. This is useful to reduce the data transported between services where the stream messages share data. 
+`grpcConst` is a slim reflection based tool to populate the client side data of gRPC messages without having to send that data in every message. This is useful to reduce the data transported between services where the stream messages share data. 
 
 An example could be for spatiotemporal data where you may send several thousand data points that all share the same location, because a user queried a specific datatype (e.g temperature), at a specific location. And want to have a timeseries displayed. This data may share location, maybe a location name and you could have other fields that are added as convenience to the data, but those fields are constant across the request. 
 
@@ -51,4 +51,6 @@ BenchmarkMergo
 BenchmarkMergo-8   	  159506	      6740 ns/op
 ```
 ## TODO
-- write merger using protoreflect
+- possibly write merger using protoreflect
+- client interceptor with base Merger; implement protreflect.Merge as a merger
+- test and benchmark reducer
