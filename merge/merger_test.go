@@ -167,25 +167,6 @@ func TestDataIsDeepCopied(t *testing.T) {
 	}
 }
 
-func TestReducerReduces(t *testing.T) {
-	reference, subject, result :=
-		&testStruct{
-			Obj: "hello",
-		},
-		&testStruct{
-			Obj: "hello",
-			Sub: nested{1},
-		},
-		&testStruct{
-			Sub: nested{1},
-		}
-	r := NewReducer(reference)
-	_ = r.RemoveFields(subject)
-	if subject.Obj != result.Obj || subject.Sub.Some != result.Sub.Some {
-		t.Error("The objects are not equal")
-	}
-}
-
 func TestNilMerge(t *testing.T) {
 	dst := &ogcish.Station{}
 	m := NewMerger((*ogcish.Station)(nil))
