@@ -53,4 +53,4 @@ BenchmarkMergo-8   	  159506	      6740 ns/op
 ## TODO
 - possibly write merger using protoreflect
 - client interceptor with base Merger; implement protreflect.Merge as a merger
-- test and benchmark reducer
+- benchmark reducer
