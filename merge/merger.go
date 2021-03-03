@@ -34,7 +34,6 @@ import (
 //by a donor at instance initiation via NewMerger
 type Merger interface {
 	SetFields(interface{}) error
-	GetReducer() Reducer
 }
 
 //Reducer can RemoveFields of a given object given values given
@@ -42,19 +41,9 @@ type Merger interface {
 //the reducer removes fields that are equal the reference
 type Reducer interface {
 	RemoveFields(interface{}) error
-	GetMerger() Merger
 }
 
-//GetMerger returns itself (Reducer) as a Merger
-func (m reflectTree) GetMerger() Merger {
-	return m
-}
-
-//GetReducer returns itself (Merger) as a Reducer
-func (m reflectTree) GetReducer() Reducer {
-	return m
-}
-
+//Deprecated
 //NewMerger initiates the Merger, populating the []reflectTree
 //for future merging of pointer targets
 //panics if the donor is not a pointer
@@ -73,7 +62,7 @@ func NewMerger(donor interface{}) Merger {
 
 //NewReducer initiates a merger and returns its Reducer
 func NewReducer(reference interface{}) Reducer {
-	return NewMerger(reference).GetReducer()
+	return NewMerger(reference).(Reducer)
 }
 
 //reflectTree is a data-structure to save the fields that should be defaulted

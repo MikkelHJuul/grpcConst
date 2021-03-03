@@ -63,16 +63,31 @@ func ServerStreamWrapper(reference interface{}) (stream grpc.ServerStream, err e
 }
 
 //StreamClientInterceptor is an interceptor for the client side (for unidirectional server-side streaming rpc's)
-//The client side Stream interceptor intercepts the stream when it is initiated. This method decorates the actual ClientStream
-func StreamClientInterceptor() grpc.StreamClientInterceptor {
+//The client side Stream interceptor intercepts the stream when it is initiated.
+//This method decorates the actual ClientStream adding data to each message where applicable
+//this variadic function accepts none or one argument. defaulting the method for constructing
+//the merge.Merger to use merge.NewMerger.
+//for a more safe alternative
+func StreamClientInterceptor(mergerCreator ...MergerCreator) grpc.StreamClientInterceptor {
+	mergeCreator := MergerCreatorDefaulting(mergerCreator...)
 	return func(
 		parentCtx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
 		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		ctx := metadata.AppendToOutgoingContext(parentCtx, XgRPCConst, "")
 		var stream, err = streamer(ctx, desc, cc, method, opts...)
-		return &dataAddingClientStream{stream, nil}, err
+		return &dataAddingClientStream{stream, nil, mergeCreator}, err
 	}
 }
+
+func mergerCreatorDefaulting(creator ...MergerCreator) MergerCreator {
+	if creator == nil || creator[0] == nil {
+		return merge.NewProtoMerger
+	} else {
+		return creator[0]
+	}
+}
+
+type MergerCreator func(interface{}) merge.Merger
 
 //marshal implements the server side marshalling of a protobuf message into the specification header value
 func marshal(v interface{}) (string, error) {
@@ -94,7 +109,8 @@ func unmarshal(header string, receiver interface{}) error {
 //the intermediary construct fieldToSet is used to remove to need to traverse the entire message
 type dataAddingClientStream struct {
 	grpc.ClientStream
-	Merger merge.Merger
+	Merger        merge.Merger
+	mergerCreator MergerCreator
 }
 
 type dataRemovingServerStream struct {
@@ -115,7 +131,7 @@ func (dc *dataAddingClientStream) RecvMsg(m interface{}) error {
 				log.Printf("ERROR: an %s-header could not be unmarshalled correctly: %v", XgRPCConst, head)
 			}
 		}
-		dc.Merger = merge.NewMerger(donor)
+		dc.Merger = dc.mergerCreator(donor)
 	}
 	if err := dc.ClientStream.RecvMsg(m); err != nil {
 		return err
