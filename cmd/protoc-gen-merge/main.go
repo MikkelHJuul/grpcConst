@@ -14,7 +14,3 @@ func main() {
 		pgsgo.GoFmt(),
 	).Render()
 }
-
-type Merger interface {
-	Merge(interface{})
-}

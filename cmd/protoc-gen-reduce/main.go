@@ -15,7 +15,3 @@ func main() {
 		pgsgo.GoFmt(),
 	).Render()
 }
-
-type Reducer interface {
-	Reduce(interface{})
-}
