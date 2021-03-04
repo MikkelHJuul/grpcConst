@@ -1,15 +1,17 @@
 package grpcConst
 
 import (
+	"testing"
+
 	ogcIsh "github.com/MikkelHJuul/grpcConst/examples/ogc_ish/proto"
 	"github.com/MikkelHJuul/grpcConst/examples/route_guide/proto"
 	"github.com/MikkelHJuul/grpcConst/merge"
+
 	gogoProto "github.com/gogo/protobuf/proto"
 	pb "github.com/gogo/protobuf/proto/test_proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	goProto "google.golang.org/protobuf/proto"
-	"testing"
 )
 
 //BenchmarkDataAddingClientStream_RecvMsgSimple
@@ -19,7 +21,7 @@ import (
 //BenchmarkDataAddingClientStream_RecvMsgNeverWrite
 //BenchmarkDataAddingClientStream_RecvMsgNeverWrite-8   	 6063172	       193 ns/op
 //BenchmarkDataAddingClientStream_RecvMsgLarger
-//BenchmarkDataAddingClientStream_RecvMsgLarger-8       	 2064686	       568 ns/op
+//BenchmarkDataAddingClientStream_RecvMsgLarger-8       	 2064686	       568 ns/op  (170 ns for preCompiled)
 //BenchmarkProtoMergeMerger
 //BenchmarkProtoMergeMerger-8                           	 2121768	       566 ns/op
 //BenchmarkInitiation
@@ -74,7 +76,7 @@ func benchmarkDataaddingclientstreamRecvmsgTest(tt testType, b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{header: "EgQICxAW"},
+		ClientStream: &testClientStream{header: "CgdEZUZBVUxUIgYSBAgMEBU="},
 	},
 		args{m: func() interface{} { return &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}} }},
 	}
@@ -83,7 +85,7 @@ func BenchmarkDataAddingClientStream_RecvMsgSimple(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{header: "EgQICxAW"},
+		ClientStream: &testClientStream{header: ""},
 	},
 		args{m: func() interface{} { return &proto.Feature{Name: "", Location: &proto.Point{Latitude: 0, Longitude: 0}} }}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
@@ -91,10 +93,10 @@ func BenchmarkDataAddingClientStream_RecvMsgNil(b *testing.B) {
 
 func BenchmarkDataAddingClientStream_RecvMsgNeverWrite(b *testing.B) {
 	tests := testType{fields{
-		ClientStream: &testClientStream{header: "EgQICxAW"},
+		ClientStream: &testClientStream{header: "CgdEZUZBVUxUIgYSBAgMEBU="},
 	},
 		args{m: func() interface{} {
-			return &proto.Feature{Name: "hey", Location: &proto.Point{Latitude: 12, Longitude: 21}}
+			return &ogcIsh.Feature{Id: "hey", Geometry: &ogcIsh.Geometry{Coordinates: &ogcIsh.Point{Latitude: 12, Longitude: 21}}}
 		}}}
 	benchmarkDataaddingclientstreamRecvmsgTest(tests, b)
 }
@@ -130,28 +132,18 @@ func BenchmarkInitiation(b *testing.B) {
 }
 
 func BenchmarkPreCompiled(b *testing.B) {
-	f := &ogcIsh.Feature{
-		Type: "Feature",
-		Properties: &ogcIsh.Properties{
-			Measurement: &ogcIsh.Measurement{
-				Name: "John",
-			},
-			Station: &ogcIsh.Station{
-				Name:     "Some Station Name",
-				Metadata: "Some station's metadata, a short story",
-			},
-		},
-		Geometry: &ogcIsh.Geometry{
-			Type: "Lol",
-			Coordinates: &ogcIsh.Point{
-				Latitude:  123,
-				Longitude: 321,
-			},
+	f := &proto.Feature{
+		Name: "Hello world",
+		Location: &proto.Point{
+			Latitude:  123,
+			Longitude: 321,
 		},
 	}
 	for n := 0; n < b.N; n++ {
-		r := &ogcIsh.Feature{Properties: &ogcIsh.Properties{Measurement: &ogcIsh.Measurement{Value: 666}}}
-		r.MergeFieldsFrom(*f)
+		r := &proto.Feature{Location: &proto.Point{
+			Latitude: 11,
+		}}
+		r.Merge(*f)
 	}
 }
 
