@@ -33,6 +33,22 @@ func TestHeaderSetConstant(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "a simple ogcish obj header",
+			args: args{&ogcIsh.Feature{
+				Type: "DeFAULT",
+				Geometry: &ogcIsh.Geometry{
+					Coordinates: &ogcIsh.Point{
+						Latitude:  12,
+						Longitude: 21,
+					},
+				},
+			}},
+			want: map[string][]string{
+				XgRPCConst: {"CgdEZUZBVUxUIgYSBAgMEBU="},
+			},
+			wantErr: false,
+		},
+		{
 			name: "an empty Obj",
 			args: args{&proto.Feature{}},
 			want: map[string][]string{
