@@ -43,7 +43,6 @@ type Reducer interface {
 	RemoveFields(interface{}) error
 }
 
-//Deprecated
 //NewMerger initiates the Merger, populating the []reflectTree
 //for future merging of pointer targets
 //panics if the donor is not a pointer
