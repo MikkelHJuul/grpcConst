@@ -26,12 +26,14 @@ package grpcConst
 import (
 	"context"
 	"encoding/base64"
+	"log"
+	"reflect"
+
 	"github.com/MikkelHJuul/grpcConst/merge"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
-	"log"
-	"reflect"
 )
 
 //XgRPCConst is the HTTP header passed between server and client
@@ -56,7 +58,12 @@ func ServerStreamWrapper(reference interface{}) (stream grpc.ServerStream, err e
 			return
 		}
 		stream.SetHeader(md)
-		reducer := merge.NewReducer(reference)
+		var reducer merge.Reducer
+		if _, ok := reference.(Reducer); ok {
+			reducer = MessageMergerReducer{ConstantMessage: reference}
+		} else {
+			reducer = merge.NewReducer(reference)
+		}
 		stream = &dataRemovingServerStream{stream, reducer}
 	}
 	return
@@ -69,7 +76,7 @@ func ServerStreamWrapper(reference interface{}) (stream grpc.ServerStream, err e
 //the merge.Merger to use merge.NewMerger.
 //for a more safe alternative
 func StreamClientInterceptor(mergerCreator ...MergerCreator) grpc.StreamClientInterceptor {
-	mergeCreator := MergerCreatorDefaulting(mergerCreator...)
+	mergeCreator := mergerCreatorDefaulting(mergerCreator...)
 	return func(
 		parentCtx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string,
 		streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
@@ -81,12 +88,13 @@ func StreamClientInterceptor(mergerCreator ...MergerCreator) grpc.StreamClientIn
 
 func mergerCreatorDefaulting(creator ...MergerCreator) MergerCreator {
 	if creator == nil || creator[0] == nil {
-		return merge.NewProtoMerger
+		return merge.NewMerger
 	} else {
 		return creator[0]
 	}
 }
 
+//MergerCreator is a proxy for a function returning a merge.Merger from an interface{}
 type MergerCreator func(interface{}) merge.Merger
 
 //marshal implements the server side marshalling of a protobuf message into the specification header value
@@ -131,7 +139,11 @@ func (dc *dataAddingClientStream) RecvMsg(m interface{}) error {
 				log.Printf("ERROR: an %s-header could not be unmarshalled correctly: %v", XgRPCConst, head)
 			}
 		}
-		dc.Merger = dc.mergerCreator(donor)
+		if _, ok := donor.(Merger); ok {
+			dc.Merger = MessageMergerReducer{ConstantMessage: donor}
+		} else {
+			dc.Merger = dc.mergerCreator(donor)
+		}
 	}
 	if err := dc.ClientStream.RecvMsg(m); err != nil {
 		return err
@@ -144,6 +156,7 @@ func newEmpty(t interface{}) interface{} {
 	return reflect.New(reflect.TypeOf(t).Elem()).Interface()
 }
 
+//SendMsg reduces the message using the reference before sending it using the underlying ServerStream
 func (ds *dataRemovingServerStream) SendMsg(m interface{}) error {
 	if err := ds.Reducer.RemoveFields(m); err != nil {
 		log.Printf("ERROR: could not remove fields from %v", m)
