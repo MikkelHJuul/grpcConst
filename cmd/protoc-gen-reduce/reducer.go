@@ -21,6 +21,7 @@ func MakeReduce() *MakeReduceModule {
 
 type ReducePostProcessor struct{}
 
+//Match is almost a Copy paste of the GoFmt PostProcessor from PG* (with other SUFFIX)
 func (p ReducePostProcessor) Match(a pgs.Artifact) bool {
 	var n string
 
