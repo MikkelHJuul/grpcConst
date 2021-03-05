@@ -51,5 +51,6 @@ BenchmarkMergo
 BenchmarkMergo-8   	  159506	      6740 ns/op
 ```
 ## TODO
-- possibly write merger using protoreflect
+- possibly write reflection merger using protoreflect
 - benchmark reducer
+- remove reflect from generated code (probably have to do equality-methods)
