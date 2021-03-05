@@ -14,6 +14,8 @@ import (
 	goProto "google.golang.org/protobuf/proto"
 )
 
+//It seem like there is an overhead of about 100-150 ns just from getting and assigning objects every loop
+//
 //BenchmarkDataAddingClientStream_RecvMsgSimple
 //BenchmarkDataAddingClientStream_RecvMsgSimple-8       	 5831353	       189 ns/op
 //BenchmarkDataAddingClientStream_RecvMsgNil
@@ -38,7 +40,7 @@ type testClientStream struct {
 	header string
 }
 
-func (t *testClientStream) RecvMsg(_ interface{}) error {
+func (t *testClientStream) RecvMsg(m interface{}) error {
 	return nil
 }
 
