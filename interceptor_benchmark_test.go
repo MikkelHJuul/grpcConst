@@ -33,7 +33,6 @@ import (
 //BenchmarkGoGoProtoMerge
 //BenchmarkGoGoProtoMerge-8                             	 1000000	      1150 ns/op
 //
-//I deprecated my own implementation based on these findings
 type testClientStream struct {
 	grpc.ClientStream
 	header string
