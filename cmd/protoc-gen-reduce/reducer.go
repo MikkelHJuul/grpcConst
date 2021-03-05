@@ -130,7 +130,7 @@ func (r *MakeReduceModule) writeField(fld pgs.Field) string {
 						shouldRemove = true
 						i := 0
 						for shouldRemove {
-							if x.%[1]s[i] != r.%[1]s[i] {
+							if !reflect.DeepEquals(x.%[1]s[i], r.%[1]s[i]) {
 								shouldRemove = false
 							}
 							i++

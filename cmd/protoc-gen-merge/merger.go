@@ -14,6 +14,8 @@ type MakeMergeModule struct {
 	tpl *template.Template
 }
 
+const ProtoMergeStyle = "protoMergeStyle"
+
 func MakeMerge() *MakeMergeModule {
 	return &MakeMergeModule{ModuleBase: &pgs.ModuleBase{}}
 }
@@ -34,7 +36,7 @@ func (m *MakeMergeModule) InitContext(c pgs.BuildContext) {
 func (m *MakeMergeModule) Name() string {
 	return "mergeFunctions"
 }
-func (m *MakeMergeModule) Execute(targets map[string]pgs.File, pkgs map[string]pgs.Package) []pgs.Artifact {
+func (m *MakeMergeModule) Execute(targets map[string]pgs.File, _ map[string]pgs.Package) []pgs.Artifact {
 
 	for _, t := range targets {
 		m.generate(t)
@@ -58,10 +60,10 @@ func (m *MakeMergeModule) writeField(fld pgs.Field) string {
 	}
 	uccName := pgsgo.PGGUpperCamelCase(fld.Name())
 	if fld.Type().IsRepeated() {
-		return fmt.Sprintf(
-			`if x.%[1]s == nil || len(x.%[1]s) == 0 {
-						x.%[1]s = d.%[1]s
-					}`, uccName)
+		return m.ListMerge(uccName)
+	}
+	if fld.Type().IsMap() {
+		return m.MapMerge(uccName, fld)
 	}
 	switch fld.Type().ProtoType() {
 	case pgs.Int64T, pgs.UInt64T, pgs.SFixed64, pgs.SInt64, pgs.Fixed64T,
@@ -86,6 +88,42 @@ func (m *MakeMergeModule) writeField(fld pgs.Field) string {
 		return fmt.Sprintf(`// fallthrough type: %s`, fld.Type().ProtoType().String())
 	}
 
+}
+
+func (m *MakeMergeModule) MapMerge(uccName pgs.Name, fld pgs.Field) string {
+	base := `if x.%[1]s == nil || len(x.%[1]s) == 0 {
+						x.%[1]s = d.%[1]s
+					}`
+	if _, ok := m.ctx.Params()[ProtoMergeStyle]; ok {
+		protoStyleMerge := ` else {
+						for k, v := range d.%[1]s {
+							if _, present := x.%[1]s[k]; !present {
+								x.%[1]s[k] = v
+							} %s
+						}
+					}`
+		if fld.Type().Element().IsEmbed() {
+			return fmt.Sprintf(base+protoStyleMerge, uccName,
+				fmt.Sprintf(`else {
+						x.%[1]s[k].Merge(v)
+				}`, uccName))
+		}
+		return fmt.Sprintf(base+protoStyleMerge, uccName, "")
+	}
+	return fmt.Sprintf(base, uccName)
+}
+
+func (m *MakeMergeModule) ListMerge(uccName pgs.Name) string {
+	base := `if x.%[1]s == nil || len(x.%[1]s) == 0 {
+						x.%[1]s = d.%[1]s
+					}`
+	if _, ok := m.ctx.Params()[ProtoMergeStyle]; ok {
+		//It's not a set, I will NOT equality-check to prevent duplicates
+		return fmt.Sprintf(base+` else {
+						x.%[1]s = append(x.%[1]s, d.%[1]s...)
+						}`, uccName)
+	}
+	return fmt.Sprintf(base, uccName)
 }
 
 const mergeTpl = `package {{ package . }}
