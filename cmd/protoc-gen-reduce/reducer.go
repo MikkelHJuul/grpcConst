@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/envoyproxy/protoc-gen-validate/module"
 	"strings"
 	"text/template"
+
+	"github.com/MikkelHJuul/grpcConst/cmd/protoc-gen-merge/merge"
 
 	pgs "github.com/lyft/protoc-gen-star"
 	pgsgo "github.com/lyft/protoc-gen-star/lang/go"
@@ -38,7 +41,7 @@ func (p ReducePostProcessor) Match(a pgs.Artifact) bool {
 		return false
 	}
 
-	return strings.HasSuffix(n, "reduce.go")
+	return strings.HasSuffix(n, "reduce.go.txt")
 }
 
 func (p ReducePostProcessor) Process(in []byte) ([]byte, error) {
@@ -105,7 +108,7 @@ func (r *MakeReduceModule) generate(f pgs.File) {
 		return
 	}
 
-	name := r.ctx.OutputPath(f).SetExt(".reduce.go")
+	name := r.ctx.OutputPath(f).SetExt(".reduce.go.txt")
 	r.AddGeneratorTemplateFile(name.String(), r.tpl, f)
 
 	someBool := true
@@ -124,63 +127,97 @@ func (r *MakeReduceModule) writeField(fld pgs.Field) string {
 		return fmt.Sprintf("//OneOf field -- %s -- not touching this atm.", fld.Name())
 	}
 	uccName := pgsgo.PGGUpperCamelCase(fld.Name())
-	if fld.Type().IsRepeated() {
-		return fmt.Sprintf(
-			`if x.%[1]s != nil && r.%[1]s != nil && len(x.%[1]s) == len(r.%[1]s) {
+	return r.writeFieldName(fld, string("x."+uccName), string("r."+uccName))
+}
+
+func (r *MakeReduceModule) writeFieldName(fld interface{}, rcv, don string) string {
+	var prototype pgs.ProtoType
+	if fldType, ok := fld.(module.FieldType); ok {
+		prototype = fldType.ProtoType()
+	}
+	if pgsField, ok := fld.(pgs.Field); ok {
+		pgsType := pgsField.Type()
+		if pgsType.IsRepeated() {
+			notEqual := rcv + "[i] != " + don + "[i]"
+			if pgsType.Element().IsEmbed() {
+				//TODO - EQUALITY
+				notEqual = "!reflect.DeepEquals(" + rcv + "[i], " + don + "[i])"
+			}
+			return fmt.Sprintf(
+				`if %[1]s != nil && %[2]s != nil && len(%[1]s) == len(%[2]s) {
 						shouldRemove = true
 						i := 0
 						for shouldRemove {
-							if !reflect.DeepEquals(x.%[1]s[i], r.%[1]s[i]) {
+							if `+notEqual+` {
 								shouldRemove = false
 							}
 							i++
 						}
 						if shouldRemove {
-							r.%[1]s = nil
+							%[1]s = nil
 						}
-					}`, uccName)
+					}`, rcv, don)
+		}
+		if pgsType.IsMap() {
+			return r.reduceMap(rcv, don, pgsField)
+		}
+		prototype = pgsType.ProtoType()
 	}
-	if fld.Type().IsMap() {
+	switch prototype {
+	case pgs.Int64T, pgs.UInt64T, pgs.SFixed64, pgs.SInt64, pgs.Fixed64T,
+		pgs.Int32T, pgs.UInt32T, pgs.SFixed32, pgs.SInt32, pgs.Fixed32T, pgs.DoubleT, pgs.FloatT: // isNumeric
 		return fmt.Sprintf(
-			`if x.%[1]s != nil && r.%[1]s != nil && len(x.%[1]s) == len(r.%[1]s) {
-						shouldRemove = true
-						for k, v := range x.%[1]s {
-							if rv, ok := r.%[1]s[k]; !ok || reflect.DeepEquals(v, rv) {
+			`if %[1]s == %[2]s {
+    					%[1]s = 0
+					}`, rcv, don)
+	case pgs.StringT:
+		return fmt.Sprintf(
+			`if %[1]s == %[2]s {
+    					%[1]s = ""
+					}`, rcv, don)
+	case pgs.BytesT:
+		return fmt.Sprintf(
+			`if bytes.Equal(%[1]s, %[2]s) {
+    					x.%[1]s = nil
+					}`, rcv, don)
+	case pgs.MessageT:
+		return fmt.Sprintf(
+			`if %[1]s != nil {
+						%[1]s.Reduce(%[1]s)
+					}`, rcv, don)
+	default: // pgs.BoolT, pgs.EnumT, pgs.GroupT
+		r.Logf("Warning, your compiled code contains code that cannot be reduced: %s", prototype.String())
+		return fmt.Sprintf(`// fallthrough type: %s`, prototype.String())
+	}
+}
+
+func (r *MakeReduceModule) reduceMap(rcv, don string, fld pgs.Field) (mapReduction string) {
+	notEquals := "rv != v"
+	if fld.Type().Element().IsEmbed() {
+		notEquals = "!reflect.DeepEquals(rv, v)" //could recurse Reduce.. but it's not compatible with reflection/merge implementation.
+	}
+	mapReduction = fmt.Sprintf(
+		`if %[1]s != nil && %[2]s != nil && len(%[1]s) == len(%[2]s) {
+						shouldRemove := true
+						for k, v := range %[1]s {
+							if rv, ok := %[2]s[k]; !ok || `+notEquals+` {
 								shouldRemove = false
 								break;
 							}
 						}
 						if shouldRemove {
-							r.%[1]s = nil
+							%[1]s = nil
 						}
-					}`, uccName)
+					}`, rcv, don)
+	if _, ok := r.ctx.Params()[merge.ProtoMergeStyle]; ok {
+		mapReduction = fmt.Sprintf(
+			`for k, v := range %[1]s {
+						if rv, ok := %[2]s[k]; ok {
+							`+r.writeFieldName(fld.Type().Element(), "rv", "v")+`
+						}
+					}`, don, rcv)
 	}
-	switch fld.Type().ProtoType() {
-	case pgs.Int64T, pgs.UInt64T, pgs.SFixed64, pgs.SInt64, pgs.Fixed64T,
-		pgs.Int32T, pgs.UInt32T, pgs.SFixed32, pgs.SInt32, pgs.Fixed32T, pgs.DoubleT, pgs.FloatT: // isNumeric
-		return fmt.Sprintf(
-			`if x.%[1]s == r.%[1]s {
-    					x.%[1]s = 0
-					}`, uccName)
-	case pgs.StringT:
-		return fmt.Sprintf(
-			`if x.%[1]s == r.%[1]s {
-    					x.%[1]s = ""
-					}`, uccName)
-	case pgs.BytesT:
-		return fmt.Sprintf(
-			`if bytes.Equal(x.%[1]s, r.%[1]s) {
-    					x.%[1]s = nil
-					}`, uccName)
-	case pgs.MessageT:
-		return fmt.Sprintf(
-			`if x.%[1]s != nil {
-						x.%[1]s.Reduce(r.%[1]s)
-					}`, uccName)
-	default: // pgs.BoolT, pgs.EnumT, pgs.GroupT
-		r.Logf("Warning, your compiled code contains code that cannot be reduced: %s", fld.FullyQualifiedName())
-		return fmt.Sprintf(`// fallthrough type: %s`, fld.Type().ProtoType().String())
-	}
+	return
 }
 
 const importsStatement = `//imports here`
